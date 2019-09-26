@@ -3,8 +3,6 @@
 #include <SD.h>
 #include <SPI.h>
 
-#define DEBUG
-
 #ifdef DEBUG
 #define Sprint(a) (Serial.print(a))
 #define Sprintln(a) (Serial.println(a))
@@ -16,7 +14,7 @@
 #endif
 
 #define LED 13
-#define FLUSH_FREQ 100
+#define FLUSH_FREQ 1000
 
 CAN_device_t CAN_cfg = {
         CAN_SPEED_500KBPS,
@@ -75,37 +73,31 @@ CAN_frame_t rx_frame;
 int cnt = 0;
 
 void loop() {
-    try {
-        //receive next CAN frame from queue
-        if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
-            if (rx_frame.FIR.B.RTR == CAN_RTR) {
-                // printf(" RTR from 0x%08x, DLC %d\r\n", rx_frame.MsgID, rx_frame.FIR.B.DLC);
-            } else {
-                digitalWrite(LED, HIGH);
-                // printf(" from 0x%08x, DLC %d\n", rx_frame.MsgID, rx_frame.FIR.B.DLC);
-                int j = sprintf(buffer, "(%010lu.%06lu) can0 %03X#", millis() / 1000, micros() % 1000000,
-                                rx_frame.MsgID);
-                for (int i = 0; i < rx_frame.FIR.B.DLC; i++) {
-                    j += sprintf(buffer + j, "%02X", rx_frame.data.u8[i]);
-                }
-                sprintf(buffer + j, "\n");
-                if (file.print(buffer)) {
-                    Sprintf("Message appended: %d\n", cnt);
-                    cnt++;
-                    if (cnt > FLUSH_FREQ) {
-                        file.flush();
-                        Sprintf("Message flushed: %d\n", cnt);
-                        cnt = 0;
-                    }
-                } else {
-                    Sprintln("Append failed");
-                }
-                digitalWrite(LED, LOW);
+    //receive next CAN frame from queue
+    if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
+        if (rx_frame.FIR.B.RTR == CAN_RTR) {
+            // printf(" RTR from 0x%08x, DLC %d\r\n", rx_frame.MsgID, rx_frame.FIR.B.DLC);
+        } else {
+            digitalWrite(LED, HIGH);
+            // printf(" from 0x%08x, DLC %d\n", rx_frame.MsgID, rx_frame.FIR.B.DLC);
+            int j = sprintf(buffer, "(%010lu.%06lu) can0 %03X#", millis() / 1000, micros() % 1000000,
+                            rx_frame.MsgID);
+            for (int i = 0; i < rx_frame.FIR.B.DLC; i++) {
+                j += sprintf(buffer + j, "%02X", rx_frame.data.u8[i]);
             }
+            sprintf(buffer + j, "\n");
+            if (file.print(buffer)) {
+                Sprintf("Message appended: %d\n", cnt);
+                cnt++;
+                if (cnt > FLUSH_FREQ) {
+                    file.flush();
+                    Sprintf("Message flushed: %d\n", cnt);
+                    cnt = 0;
+                }
+            } else {
+                Sprintln("Append failed");
+            }
+            digitalWrite(LED, LOW);
         }
-    } catch (std::exception e) {
-        Sprintln(e.what());
-        file.print(e.what());
-        file.flush();
     }
 }
