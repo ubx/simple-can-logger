@@ -1,4 +1,6 @@
-#include <CAN.h>
+#include <ESP32CAN.h>
+#include <CAN_config.h>
+
 #include <FS.h>
 #include <SD.h>
 #include <SPI.h>
